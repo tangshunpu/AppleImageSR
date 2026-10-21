@@ -76,6 +76,8 @@ Results of the PyTorch port. The bicubic row is a reference baseline
 | Manga109 | 109 | Japanese comics, line art, text |
 | RealSR (crop) | 100 | real Canon/Nikon LR–HR pairs, 128→512 crops (StableSR split) |
 | RealSR V3 | 100 | real Canon/Nikon LR–HR pairs, full test images |
+| GenAIBench-4K | 50 | AI-generated (SD3.5-Medium, 1K), GenAIBench prompts |
+| DiffusionDB-4K | 50 | AI-generated (SD3.5-Medium, 1K), DiffusionDB prompts |
 
 ### ×2
 
@@ -134,6 +136,39 @@ Protocol:
   multiple of 8 and the output is cropped back. Inference is full-image
   (no tiling) in fp32 with TF32 disabled
 
+### AI-generated content (GenAIBench-4K / DiffusionDB-4K)
+
+GenAIBench-4K and DiffusionDB-4K ([4KAgent](https://arxiv.org/abs/2507.07105))
+are prompt sets for AIGC 1K→4K upscaling, with no ground truth. For each set,
+1024×1024 images were generated with SD3.5-Medium from the first 50 prompts
+(40 steps, CFG 4.5, seed = prompt index), then evaluated two ways.
+
+**Full-reference**: the generated 1K image is the HR, bicubic-downsampled
+(PIL, antialiased) to 256×256 and upscaled ×4
+
+| Dataset | Method | PSNR-Y ↑ | SSIM-Y ↑ | MS-SSIM ↑ | LPIPS ↓ |
+| --- | --- | --- | --- | --- | --- |
+| GenAIBench-4K | Bicubic | 30.29 | 0.8026 | 0.9473 | 0.3392 |
+| | **AppleImageSR** | **31.88** | **0.8317** | **0.9596** | **0.2676** |
+| DiffusionDB-4K | Bicubic | 28.96 | 0.7758 | 0.9468 | 0.3987 |
+| | **AppleImageSR** | **30.26** | **0.8130** | **0.9609** | **0.3094** |
+
+**No-reference** (4KAgent protocol): the 1K image is upscaled ×4 to 4096×4096
+and scored with [pyiqa](https://github.com/chaofengc/IQA-PyTorch). MUSIQ-P is
+MUSIQ averaged over non-overlapping 512×512 patches.
+
+| Dataset | Method | NIQE ↓ | CLIPIQA ↑ | MUSIQ-P ↑ | MANIQA ↑ |
+| --- | --- | --- | --- | --- | --- |
+| GenAIBench-4K | Bicubic ×4 | 8.222 | 0.6083 | 28.69 | 0.3442 |
+| | **AppleImageSR ×4** | **7.229** | **0.6102** | **34.12** | **0.3469** |
+| DiffusionDB-4K | Bicubic ×4 | 7.549 | 0.5766 | 27.35 | 0.2924 |
+| | **AppleImageSR ×4** | **6.825** | **0.5902** | **33.63** | **0.3035** |
+
+The model improves on bicubic in every metric (+1.3–1.6 dB PSNR-Y), but as a
+regression model it sharpens rather than synthesizes 4K detail. The generator
+and prompt count differ from the 4KAgent paper, so these numbers are not
+directly comparable with its tables.
+
 ### Visual comparison
 
 The red box marks the zoomed region. It is placed automatically at the HR window
@@ -152,6 +187,12 @@ PSNR-Y is for the whole image.
 
 ![Urban100 img_092 x4](assets/Urban100_img_092_x4.png)
 ![RealSR Canon_005 x4](assets/RealSR_Canon_005_x4.png)
+
+**×4, AI-generated** (SD3.5-Medium 1K as HR, 256×256 LR)
+
+![GenAIBench-4K 00065 x4](assets/GenAIBench-4K_00065_x4.png)
+![DiffusionDB-4K 0288dcc4 x4](assets/DiffusionDB-4K_0288dcc4_x4.png)
+![DiffusionDB-4K 007d6097 x4](assets/DiffusionDB-4K_007d6097_x4.png)
 
 ## Provenance
 
