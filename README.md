@@ -13,6 +13,9 @@ AppleImageSR/
 │   ├── cnn_gp_mlscaler_2x.pt
 │   └── cnn_gp_mlscaler_4x.pt
 ├── example.py        # minimal inference example
+├── eval_benchmarks.py  # PSNR / SSIM / MS-SSIM / LPIPS on SR benchmarks
+├── make_figures.py   # zoom-in comparison figures
+├── assets/           # figures used below
 └── requirements.txt
 ```
 
@@ -59,6 +62,120 @@ CPU-only comparisons with the original `.mlmodelc` on random inputs:
 
 The alpha channel matches exactly. Residuals come from fp16 CoreML storage and
 accumulation order, not from model topology.
+
+## Benchmarks
+
+Results of the PyTorch port. The bicubic row is a reference baseline
+(PyTorch `F.interpolate(mode="bicubic")`, which is slightly sharper than MATLAB
+`imresize`, so bicubic scores here are a bit higher than the usual published numbers).
+
+| Dataset | Images | Content |
+| --- | --- | --- |
+| Set5 | 5 | people, animals, butterfly |
+| Set14 | 14 | natural images, people, texture |
+| BSD100 | 100 | natural scenes, texture |
+| Urban100 | 100 | buildings, repeated structures, regular texture |
+| Manga109 | 109 | Japanese comics, line art, text |
+| RealSR (crop) | 100 | real Canon/Nikon LR–HR pairs, 128→512 crops (StableSR split) |
+| RealSR V3 | 100 | real Canon/Nikon LR–HR pairs, full test images |
+
+### ×2
+
+| Dataset | Method | PSNR-Y ↑ | SSIM-Y ↑ | MS-SSIM ↑ | LPIPS ↓ |
+| --- | --- | --- | --- | --- | --- |
+| Set5 | Bicubic | 33.98 | 0.9330 | 0.9928 | 0.1350 |
+| | **AppleImageSR** | **36.53** | **0.9564** | **0.9955** | **0.0768** |
+| Set14 | Bicubic | 30.55 | 0.8751 | 0.9858 | 0.2015 |
+| | **AppleImageSR** | **32.66** | **0.9133** | **0.9918** | **0.1221** |
+| BSD100 | Bicubic | 29.74 | 0.8496 | 0.9836 | 0.2728 |
+| | **AppleImageSR** | **31.53** | **0.8942** | **0.9910** | **0.1693** |
+| Urban100 | Bicubic | 27.07 | 0.8457 | 0.9830 | 0.2240 |
+| | **AppleImageSR** | **30.35** | **0.9147** | **0.9918** | **0.1037** |
+| Manga109 | Bicubic | 31.25 | 0.9386 | 0.9923 | 0.1111 |
+| | **AppleImageSR** | **35.98** | **0.9715** | **0.9965** | **0.0418** |
+| RealSR V3 | Bicubic | 31.75 | 0.8888 | 0.9547 | 0.2206 |
+| | **AppleImageSR** | **32.18** | **0.8977** | **0.9568** | **0.1894** |
+
+### ×4
+
+| Dataset | Method | PSNR-Y ↑ | SSIM-Y ↑ | MS-SSIM ↑ | LPIPS ↓ |
+| --- | --- | --- | --- | --- | --- |
+| Set5 | Bicubic | 28.63 | 0.8138 | 0.9574 | 0.3451 |
+| | **AppleImageSR** | **30.91** | **0.8755** | **0.9755** | **0.2271** |
+| Set14 | Bicubic | 26.21 | 0.7088 | 0.9268 | 0.4414 |
+| | **AppleImageSR** | **27.89** | **0.7658** | **0.9480** | **0.3318** |
+| BSD100 | Bicubic | 26.05 | 0.6721 | 0.9154 | 0.5319 |
+| | **AppleImageSR** | **27.09** | **0.7214** | **0.9375** | **0.4294** |
+| Urban100 | Bicubic | 23.24 | 0.6616 | 0.9113 | 0.4740 |
+| | **AppleImageSR** | **24.90** | **0.7459** | **0.9444** | **0.3179** |
+| Manga109 | Bicubic | 25.07 | 0.7905 | 0.9422 | 0.3195 |
+| | **AppleImageSR** | **28.33** | **0.8777** | **0.9693** | **0.1609** |
+| RealSR (crop) | Bicubic | 27.15 | 0.7582 | 0.8713 | 0.4553 |
+| | **AppleImageSR** | **27.51** | **0.7744** | **0.8796** | **0.4056** |
+| RealSR V3 | Bicubic | 27.28 | 0.7658 | 0.8743 | 0.4732 |
+| | **AppleImageSR** | **27.62** | **0.7801** | **0.8824** | **0.4397** |
+
+On the bicubic-degraded benchmarks the model gains 1.0–4.7 dB over bicubic, most on
+line art (Manga109) and regular structures (Urban100). For reference, ×4 Set5
+(30.91 dB) sits between FSRCNN (30.72) and VDSR (31.35). On real camera
+degradations (RealSR) the gain drops to ~0.4 dB, which suggests the model was
+trained mainly for bicubic-like downsampling rather than real blur and noise.
+
+Protocol:
+
+- PSNR-Y / SSIM-Y on the Y channel (BT.601), `scale` border pixels cropped,
+  outputs quantized to 8 bit (same as BasicSR)
+- MS-SSIM ([pytorch-msssim](https://github.com/VainF/pytorch-msssim)) and
+  LPIPS-Alex ([lpips](https://github.com/richzhang/PerceptualSimilarity)) on RGB,
+  same border crop
+- Set5/Set14/BSD100/Urban100/Manga109: BasicSR test sets (`GTmod{s}` /
+  `LRbicx{s}`, MATLAB bicubic LR)
+- RealSR (crop): `RealSRVal_crop128` from the StableSR test sets;
+  RealSR V3: full Canon + Nikon `Test/{2,4}` images
+- The encoder downsamples 3× by 2, so LR inputs are reflect-padded to a
+  multiple of 8 and the output is cropped back. Inference is full-image
+  (no tiling) in fp32 with TF32 disabled
+
+### Visual comparison
+
+The red box marks the zoomed region. It is placed automatically at the HR window
+with the highest gradient energy, not chosen by which method looks better.
+PSNR-Y is for the whole image.
+
+**×2**
+
+![Urban100 img_062 x2](assets/Urban100_img_062_x2.png)
+![Set14 zebra x2](assets/Set14_zebra_x2.png)
+
+**×4**
+
+![Manga109 YumeiroCooking x4](assets/Manga109_YumeiroCooking_x4.png)
+![BSD100 253027 x4](assets/BSD100_253027_x4.png)
+
+**×4 failure cases**: fine texture already aliased away in the LR (Urban100) and
+real camera degradation (RealSR)
+
+![Urban100 img_092 x4](assets/Urban100_img_092_x4.png)
+![RealSR Canon_005 x4](assets/RealSR_Canon_005_x4.png)
+
+### Reproduce
+
+```bash
+pip install -r requirements.txt lpips pytorch-msssim pillow numpy
+
+D=/path/to/BasicSR_SR_test
+python eval_benchmarks.py \
+  --pair Set5:$D/Set5/LRbicx4:$D/Set5/GTmod4:4 \
+  --pair Urban100:$D/Urban100/LRbicx4:$D/Urban100/GTmod4:4 \
+  --out results            # writes summary.json and per_image.json
+
+python make_figures.py \
+  --item Set14_zebra:$D/Set14/LRbicx2/zebra.png:$D/Set14/GTmod2/zebra.png:2 \
+  --out assets
+```
+
+`--pair` takes `name:lr_dir:hr_dir:scale`; LR and HR files are matched by sorted
+order. Images that do not fit in GPU memory are re-run on CPU.
 
 ## Provenance
 
