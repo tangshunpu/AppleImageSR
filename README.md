@@ -13,8 +13,6 @@ AppleImageSR/
 │   ├── cnn_gp_mlscaler_2x.pt
 │   └── cnn_gp_mlscaler_4x.pt
 ├── example.py        # minimal inference example
-├── eval_benchmarks.py  # PSNR / SSIM / MS-SSIM / LPIPS on SR benchmarks
-├── make_figures.py   # zoom-in comparison figures
 ├── assets/           # figures used below
 └── requirements.txt
 ```
@@ -157,25 +155,6 @@ real camera degradation (RealSR)
 
 ![Urban100 img_092 x4](assets/Urban100_img_092_x4.png)
 ![RealSR Canon_005 x4](assets/RealSR_Canon_005_x4.png)
-
-### Reproduce
-
-```bash
-pip install -r requirements.txt lpips pytorch-msssim pillow numpy
-
-D=/path/to/BasicSR_SR_test
-python eval_benchmarks.py \
-  --pair Set5:$D/Set5/LRbicx4:$D/Set5/GTmod4:4 \
-  --pair Urban100:$D/Urban100/LRbicx4:$D/Urban100/GTmod4:4 \
-  --out results            # writes summary.json and per_image.json
-
-python make_figures.py \
-  --item Set14_zebra:$D/Set14/LRbicx2/zebra.png:$D/Set14/GTmod2/zebra.png:2 \
-  --out assets
-```
-
-`--pair` takes `name:lr_dir:hr_dir:scale`; LR and HR files are matched by sorted
-order. Images that do not fit in GPU memory are re-run on CPU.
 
 ## Provenance
 
