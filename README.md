@@ -150,9 +150,6 @@ PSNR-Y is for the whole image.
 ![Manga109 YumeiroCooking x4](assets/Manga109_YumeiroCooking_x4.png)
 ![BSD100 253027 x4](assets/BSD100_253027_x4.png)
 
-**×4 failure cases**: fine texture already aliased away in the LR (Urban100) and
-real camera degradation (RealSR)
-
 ![Urban100 img_092 x4](assets/Urban100_img_092_x4.png)
 ![RealSR Canon_005 x4](assets/RealSR_Canon_005_x4.png)
 
